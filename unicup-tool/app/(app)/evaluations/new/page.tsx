@@ -1,16 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  MapPin,
-  Users,
-  DollarSign,
-  Building,
-  Star,
-  ArrowRight,
-  ArrowLeft,
-  Save,
-} from 'lucide-react';
+import { MapPin, Users, DollarSign, Star, ArrowRight, ArrowLeft, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +44,7 @@ export default function NewEvaluationPage() {
   const [step, setStep] = useState(0);
   const [input, setInput] = useState<EvaluationInput>(DEFAULT_INPUT);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const set = (field: keyof EvaluationInput, value: string | number) => {
     setInput((prev) => ({ ...prev, [field]: value }));
@@ -69,15 +61,23 @@ export default function NewEvaluationPage() {
       return;
     }
     setSaving(true);
-    const saved = saveEvaluation(input);
-    router.push(`/evaluations/${saved.id}`);
+    setSaveError('');
+    try {
+      const saved = await saveEvaluation(input);
+      router.push(`/evaluations/${saved.id}`);
+    } catch {
+      setSaveError('저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      setSaving(false);
+    }
   };
 
   return (
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">신규 입지 평가</h1>
-        <p className="text-sm text-slate-500 mt-1">후보 입지 정보를 입력하여 자동으로 매출과 수익성을 분석합니다.</p>
+        <p className="text-sm text-slate-500 mt-1">
+          후보 입지 정보를 입력하여 자동으로 매출과 수익성을 분석합니다.
+        </p>
       </div>
 
       <StepIndicator steps={STEPS} current={step} />
@@ -98,12 +98,8 @@ export default function NewEvaluationPage() {
                 onChange={(e) => set('locationName', e.target.value)}
               />
             </Field>
-
             <Field label="상권 유형">
-              <Select
-                value={input.areaType}
-                onValueChange={(v) => set('areaType', v as AreaType)}
-              >
+              <Select value={input.areaType} onValueChange={(v) => set('areaType', v as AreaType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -114,8 +110,7 @@ export default function NewEvaluationPage() {
                 </SelectContent>
               </Select>
             </Field>
-
-            <Field label="월 메모 / 특이사항" hint="현장 방문 메모, 계약 조건 특이사항 등">
+            <Field label="메모 / 특이사항" hint="현장 방문 메모, 계약 조건 특이사항 등">
               <Textarea
                 placeholder="현장 메모를 입력하세요 (선택)"
                 value={input.locationMemo}
@@ -148,7 +143,7 @@ export default function NewEvaluationPage() {
               <Field label="평균 객단가" hint="원">
                 <Input type="number" min={0} step={500} value={input.avgTransactionValue} onChange={setNum('avgTransactionValue')} />
               </Field>
-              <Field label="평균 매출총이익률" hint="% (예: 65)">
+              <Field label="매출총이익률" hint="% (예: 65)">
                 <Input type="number" min={0} max={100} value={input.grossMarginRate} onChange={setNum('grossMarginRate')} />
               </Field>
             </div>
@@ -198,43 +193,26 @@ export default function NewEvaluationPage() {
             <Field label="인근 카페 수" hint="개 (경쟁 강도 기준)">
               <Input type="number" min={0} value={input.nearbyCafes} onChange={setNum('nearbyCafes')} />
             </Field>
-
             <div className="grid grid-cols-2 gap-4">
-              <ScoreField
-                label="전면 가시성"
-                value={input.frontVisibilityScore}
-                onChange={(v) => set('frontVisibilityScore', v)}
-              />
-              <ScoreField
-                label="유동인구/접근성"
-                value={input.trafficAccessibilityScore}
-                onChange={(v) => set('trafficAccessibilityScore', v)}
-              />
-              <ScoreField
-                label="단체/B2B 잠재력"
-                value={input.groupOrderScore}
-                onChange={(v) => set('groupOrderScore', v)}
-              />
-              <ScoreField
-                label="본사 운영 난이도 (역산)"
-                value={input.operationDifficultyScore}
-                onChange={(v) => set('operationDifficultyScore', v)}
-                hint="5: 매우 용이, 1: 매우 어려움"
-              />
+              <ScoreField label="전면 가시성" value={input.frontVisibilityScore} onChange={(v) => set('frontVisibilityScore', v)} />
+              <ScoreField label="유동인구/접근성" value={input.trafficAccessibilityScore} onChange={(v) => set('trafficAccessibilityScore', v)} />
+              <ScoreField label="단체/B2B 잠재력" value={input.groupOrderScore} onChange={(v) => set('groupOrderScore', v)} />
+              <ScoreField label="본사 운영 난이도 (역산)" value={input.operationDifficultyScore} onChange={(v) => set('operationDifficultyScore', v)} hint="5: 매우 용이, 1: 매우 어려움" />
             </div>
           </CardContent>
         </Card>
       )}
 
+      {saveError && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+          {saveError}
+        </p>
+      )}
+
       <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={() => setStep((s) => s - 1)}
-          disabled={step === 0}
-        >
+        <Button variant="outline" onClick={() => setStep((s) => s - 1)} disabled={step === 0}>
           <ArrowLeft className="h-4 w-4 mr-1" /> 이전
         </Button>
-
         {step < STEPS.length - 1 ? (
           <Button onClick={() => setStep((s) => s + 1)}>
             다음 <ArrowRight className="h-4 w-4 ml-1" />
@@ -267,11 +245,7 @@ function StepIndicator({ steps, current }: { steps: string[]; current: number })
             >
               {i + 1}
             </div>
-            <span
-              className={`text-sm font-medium ${
-                i === current ? 'text-[#1e3a5f]' : 'text-slate-400'
-              }`}
-            >
+            <span className={`text-sm font-medium ${i === current ? 'text-[#1e3a5f]' : 'text-slate-400'}`}>
               {s}
             </span>
           </div>
@@ -284,15 +258,7 @@ function StepIndicator({ steps, current }: { steps: string[]; current: number })
   );
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
@@ -302,17 +268,7 @@ function Field({
   );
 }
 
-function ScoreField({
-  label,
-  value,
-  onChange,
-  hint,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  hint?: string;
-}) {
+function ScoreField({ label, value, onChange, hint }: { label: string; value: number; onChange: (v: number) => void; hint?: string }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>

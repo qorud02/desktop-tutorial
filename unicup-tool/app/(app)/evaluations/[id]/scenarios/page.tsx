@@ -15,9 +15,10 @@ export default function ScenariosPage() {
   const [ev, setEv] = useState<Evaluation | null>(null);
 
   useEffect(() => {
-    const data = getEvaluation(id);
-    if (!data) router.push('/evaluations');
-    else setEv(data);
+    getEvaluation(id).then((data) => {
+      if (!data) router.push('/evaluations');
+      else setEv(data);
+    });
   }, [id, router]);
 
   if (!ev) return <div className="text-slate-400 text-sm">불러오는 중...</div>;

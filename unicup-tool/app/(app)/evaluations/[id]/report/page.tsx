@@ -25,9 +25,10 @@ export default function ReportPage() {
   const [checked, setChecked] = useState<boolean[]>(Array(CHECKLIST.length).fill(false));
 
   useEffect(() => {
-    const data = getEvaluation(id);
-    if (!data) router.push('/evaluations');
-    else setEv(data);
+    getEvaluation(id).then((data) => {
+      if (!data) router.push('/evaluations');
+      else setEv(data);
+    });
   }, [id, router]);
 
   const handlePrint = () => window.print();

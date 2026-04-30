@@ -2,137 +2,154 @@
 
 유니컵 프랜차이즈 본사의 후보 입지 평가 및 의사결정을 위한 내부 MVP 웹 애플리케이션입니다.
 
+---
+
 ## 주요 기능
 
-- **신규 평가 입력**: 4단계 폼으로 후보 입지 정보 입력
-- **자동 계산**: 월 예상매출, 영업이익, 임차료 비율, 투자회수기간, 손익분기점 자동 산출
-- **100점 종합 점수**: 매출 규모, 수익성, 임차료, 회수기간, 경쟁강도, 정성평가 가중 채점
-- **판정**: 우선검토 / 조건부검토 / 보류 자동 판정
-- **시나리오 비교**: 보수적 / 기본 / 공격적 3개 시나리오 자동 생성 및 비교
-- **1페이지 리포트**: 투자자·정책자금 심사자용 인쇄 가능 리포트
-- **데이터 관리**: localStorage 기반 저장, 조회, 삭제
+- **이메일/비밀번호 로그인 & 회원가입** (Supabase Auth)
+- **사용자별 데이터 격리** (RLS - 본인 평가만 조회/수정/삭제)
+- 4단계 평가 입력 폼, 자동 계산 (매출·이익·회수기간·점수)
+- 보수적/기본/공격적 3개 시나리오 자동 생성
+- 1페이지 인쇄용 의사결정 리포트
+
+---
 
 ## 기술 스택
 
-- **프레임워크**: Next.js 16 (App Router)
-- **언어**: TypeScript
-- **스타일**: Tailwind CSS
-- **UI**: Radix UI primitives + 커스텀 컴포넌트
-- **데이터**: Browser localStorage (Supabase 마이그레이션 준비 완료)
-- **배포**: Vercel
+| 분류 | 기술 |
+|------|------|
+| 프레임워크 | Next.js 16 (App Router) |
+| 언어 | TypeScript |
+| 스타일 | Tailwind CSS |
+| 인증/DB | Supabase (Auth + PostgreSQL + RLS) |
+| 배포 | Vercel |
+
+---
 
 ## 로컬 실행 방법
 
-### 사전 요구사항
-- Node.js 18 이상
-- npm 또는 yarn
+### 1단계 — Supabase 프로젝트 생성
 
-### 설치 및 실행
+1. [supabase.com](https://supabase.com) 접속 → 무료 계정 생성
+2. **New Project** 클릭 → 프로젝트 이름, 비밀번호, 리전(Northeast Asia) 설정
+3. 프로젝트 생성 완료 후 **Settings → API** 로 이동
+4. 아래 두 값을 복사해둡니다:
+   - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
+   - `anon public` 키 → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+### 2단계 — DB 스키마 적용
+
+1. Supabase 대시보드 → **SQL Editor** 탭 클릭
+2. `supabase/schema.sql` 파일 내용을 전체 복사
+3. SQL Editor에 붙여넣기 → **Run** 클릭
+4. `evaluations` 테이블과 RLS 정책이 생성됩니다.
+
+### 3단계 — 이메일 인증 설정 (선택)
+
+- 개발 중 이메일 인증을 끄려면:
+  Supabase 대시보드 → **Authentication → Providers → Email** →
+  **Confirm email** 토글을 **OFF** 로 변경
+
+### 4단계 — 환경 변수 설정
 
 ```bash
-# 프로젝트 클론 후 디렉터리 이동
 cd unicup-tool
+cp .env.local.example .env.local
+```
 
-# 의존성 설치
+`.env.local` 파일을 열어 Supabase 값 입력:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 5단계 — 로컬 실행
+
+```bash
 npm install
-
-# 개발 서버 실행
 npm run dev
 ```
 
 브라우저에서 [http://localhost:3000](http://localhost:3000) 접속
+→ `/login` 으로 자동 리디렉션 됩니다.
 
-### 프로덕션 빌드
-
-```bash
-npm run build
-npm start
-```
+---
 
 ## Vercel 배포 방법
 
-1. [Vercel](https://vercel.com)에 GitHub 저장소 연결
-2. `unicup-tool` 폴더를 **Root Directory**로 설정
-3. Framework Preset: **Next.js** 선택
-4. 환경 변수 없음 (localStorage 사용)
-5. Deploy 클릭
+1. GitHub에 저장소 push
+2. [vercel.com](https://vercel.com) → **Add New Project** → 저장소 선택
+3. **Root Directory** 를 `unicup-tool` 로 설정
+4. **Environment Variables** 탭에서 아래 두 변수 추가:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+5. **Deploy** 클릭
 
-또는 Vercel CLI 사용:
-
-```bash
-npm install -g vercel
-cd unicup-tool
-vercel --prod
+배포 완료 후 Supabase 대시보드 → **Authentication → URL Configuration** 에서
+`Site URL` 과 `Redirect URLs` 에 Vercel 도메인 추가:
 ```
+https://your-app.vercel.app
+https://your-app.vercel.app/**
+```
+
+---
 
 ## 폴더 구조
 
 ```
 unicup-tool/
 ├── app/
-│   ├── layout.tsx                  # 루트 레이아웃 (사이드바, 탑바 포함)
-│   ├── page.tsx                    # 대시보드
-│   └── evaluations/
-│       ├── page.tsx                # 저장된 평가 목록
-│       ├── new/
-│       │   └── page.tsx            # 신규 평가 입력 폼
-│       └── [id]/
-│           ├── page.tsx            # 평가 결과 상세
-│           ├── scenarios/
-│           │   └── page.tsx        # 시나리오 비교
-│           └── report/
-│               └── page.tsx        # 1페이지 의사결정 리포트
+│   ├── layout.tsx                     # 루트 레이아웃 (HTML shell)
+│   ├── (auth)/
+│   │   ├── login/page.tsx             # 로그인 페이지
+│   │   └── signup/page.tsx            # 회원가입 페이지
+│   └── (app)/
+│       ├── layout.tsx                 # 사이드바+탑바+세션 검증
+│       ├── page.tsx                   # 대시보드
+│       └── evaluations/
+│           ├── page.tsx               # 저장된 평가 목록
+│           ├── new/page.tsx           # 신규 평가 입력 폼
+│           └── [id]/
+│               ├── page.tsx           # 평가 결과 상세
+│               ├── scenarios/page.tsx # 시나리오 비교
+│               └── report/page.tsx   # 1페이지 리포트
 ├── components/
 │   ├── layout/
-│   │   ├── sidebar.tsx             # 좌측 내비게이션
-│   │   └── topbar.tsx              # 상단 브레드크럼
-│   └── ui/                         # 재사용 UI 컴포넌트
-│       ├── badge.tsx
-│       ├── button.tsx
-│       ├── card.tsx
-│       ├── input.tsx
-│       ├── label.tsx
-│       ├── select.tsx
-│       ├── separator.tsx
-│       └── textarea.tsx
+│   │   ├── sidebar.tsx                # 좌측 내비게이션
+│   │   ├── topbar.tsx                 # 상단 브레드크럼
+│   │   └── logout-button.tsx          # 로그아웃 버튼 (client)
+│   └── ui/                            # 재사용 UI 컴포넌트
 ├── lib/
-│   ├── types.ts                    # TypeScript 타입 정의
-│   ├── calculations.ts             # 핵심 계산 로직 (순수 함수)
-│   ├── storage.ts                  # localStorage CRUD
-│   └── utils.ts                    # 포맷팅 유틸 (KRW, %, 월)
-└── public/
+│   ├── supabase/
+│   │   ├── client.ts                  # 브라우저 Supabase 클라이언트
+│   │   └── server.ts                  # 서버 Supabase 클라이언트
+│   ├── calculations.ts                # 계산 로직 (순수 함수, 변경 없음)
+│   ├── storage.ts                     # Supabase CRUD (async)
+│   ├── types.ts                       # TypeScript 타입 정의
+│   └── utils.ts                       # KRW·%·월 포맷 유틸
+├── proxy.ts                           # 라우트 보호 (미들웨어)
+├── supabase/
+│   └── schema.sql                     # DB 스키마 + RLS 정책
+└── .env.local.example                 # 환경변수 템플릿
 ```
 
-## 계산 로직
+---
 
-모든 계산은 `lib/calculations.ts`에 순수 함수로 구현되어 있습니다. 외부 API 의존성이 없어 즉시 결정론적 결과를 반환합니다.
+## 인증 흐름
 
-### 핵심 계산식
-
-| 지표 | 계산식 |
-|------|--------|
-| 월 예상매출 | 영업일 × 일 방문객 × 객단가 |
-| 월 매출총이익 | 월 예상매출 × 매출총이익률 |
-| 월 영업이익 | 월 매출총이익 - 임차료 - 인건비 - 기타고정비 |
-| 임차료 비율 | 월 임차료 / 월 예상매출 |
-| 투자 회수기간 | 초기투자비용 / 월 영업이익 |
-
-## Supabase 마이그레이션 준비
-
-`lib/storage.ts`의 함수 시그니처를 유지하면서 구현만 교체하면 됩니다:
-
-```typescript
-// 현재: localStorage
-export function getEvaluations(): Evaluation[] { ... }
-export function saveEvaluation(...): Evaluation { ... }
-export function deleteEvaluation(id: string): void { ... }
-
-// 향후: Supabase (인터페이스 동일, 구현만 교체)
-export async function getEvaluations(): Promise<Evaluation[]> { ... }
 ```
+미로그인 사용자 → 모든 페이지 → /login 리디렉션
+로그인 사용자  → /login, /signup → / 리디렉션
+```
+
+`proxy.ts` 가 모든 요청을 가로채 Supabase 세션 쿠키를 검사합니다.
+`(app)/layout.tsx` 서버 컴포넌트에서 세션을 2차 검증합니다.
+
+---
 
 ## 주의사항
 
-- 이 MVP는 인증, 결제, AI 예측 기능을 포함하지 않습니다.
-- 데이터는 브라우저 localStorage에 저장됩니다. 브라우저 데이터를 삭제하면 평가 내역이 초기화됩니다.
-- 내부 전용 시스템입니다.
+- `.env.local` 파일은 절대 Git에 커밋하지 마세요.
+- 결제, AI 예측, 팀 관리 기능은 포함되지 않습니다.
+- `lib/calculations.ts` 의 계산 로직은 변경되지 않았습니다.

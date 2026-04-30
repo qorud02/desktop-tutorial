@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PlusCircle, Trash2, Eye, FileText, GitCompare } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getEvaluations, deleteEvaluation } from '@/lib/storage';
@@ -19,15 +19,13 @@ function DecisionBadge({ decision }: { decision: string }) {
 export default function EvaluationsPage() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
 
-  const reload = () => setEvaluations(getEvaluations());
+  const reload = () => getEvaluations().then(setEvaluations);
 
-  useEffect(() => {
-    reload();
-  }, []);
+  useEffect(() => { reload(); }, []);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('이 평가를 삭제하시겠습니까?')) {
-      deleteEvaluation(id);
+      await deleteEvaluation(id);
       reload();
     }
   };
@@ -89,17 +87,13 @@ function EvaluationRow({
               ))}
             </div>
             <p className="text-sm text-slate-400 mt-1">
-              {AREA_TYPE_LABELS[e.input.areaType]} ·{' '}
-              평가일: {new Date(e.createdAt).toLocaleDateString('ko-KR')}
+              {AREA_TYPE_LABELS[e.input.areaType]} · 평가일:{' '}
+              {new Date(e.createdAt).toLocaleDateString('ko-KR')}
             </p>
 
             <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-1.5 sm:grid-cols-4">
               <Stat label="월 예상매출" value={formatKRW(e.result.monthlyExpectedSales)} />
-              <Stat
-                label="월 영업이익"
-                value={formatKRW(e.result.monthlyOperatingProfit)}
-                negative={e.result.monthlyOperatingProfit < 0}
-              />
+              <Stat label="월 영업이익" value={formatKRW(e.result.monthlyOperatingProfit)} negative={e.result.monthlyOperatingProfit < 0} />
               <Stat label="임차료 비율" value={formatPercent(e.result.rentBurdenRatio)} />
               <Stat label="투자회수" value={formatMonths(e.result.paybackPeriod)} />
             </div>

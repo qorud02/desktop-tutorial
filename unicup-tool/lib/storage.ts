@@ -1,58 +1,72 @@
 import type { Evaluation, EvaluationInput } from './types';
 import { calculate, calculateScenarios } from './calculations';
+import { createClient } from './supabase/client';
 
-const STORAGE_KEY = 'unicup_evaluations';
-
-export function getEvaluations(): Evaluation[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToEvaluation(row: any): Evaluation {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    input: row.input as EvaluationInput,
+    result: row.result,
+    scenarios: row.scenarios,
+  };
 }
 
-export function getEvaluation(id: string): Evaluation | null {
-  return getEvaluations().find((e) => e.id === id) ?? null;
+export async function getEvaluations(): Promise<Evaluation[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('evaluations')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map(rowToEvaluation);
 }
 
-export function saveEvaluation(input: EvaluationInput, existingId?: string): Evaluation {
-  const evaluations = getEvaluations();
+export async function getEvaluation(id: string): Promise<Evaluation | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('evaluations')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return null;
+  return rowToEvaluation(data);
+}
+
+export async function saveEvaluation(
+  input: EvaluationInput,
+  existingId?: string
+): Promise<Evaluation> {
+  const supabase = createClient();
   const result = calculate(input);
   const scenarios = calculateScenarios(input);
   const now = new Date().toISOString();
 
   if (existingId) {
-    const idx = evaluations.findIndex((e) => e.id === existingId);
-    if (idx !== -1) {
-      const updated: Evaluation = {
-        ...evaluations[idx],
-        updatedAt: now,
-        input,
-        result,
-        scenarios,
-      };
-      evaluations[idx] = updated;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(evaluations));
-      return updated;
-    }
+    const { data } = await supabase
+      .from('evaluations')
+      .update({ input, result, scenarios, updated_at: now })
+      .eq('id', existingId)
+      .select()
+      .single();
+    if (data) return rowToEvaluation(data);
   }
 
-  const evaluation: Evaluation = {
-    id: crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now,
-    input,
-    result,
-    scenarios,
-  };
-  evaluations.push(evaluation);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(evaluations));
-  return evaluation;
+  const { data, error } = await supabase
+    .from('evaluations')
+    .insert({ input, result, scenarios })
+    .select()
+    .single();
+
+  if (error || !data) throw new Error('평가 저장에 실패했습니다.');
+  return rowToEvaluation(data);
 }
 
-export function deleteEvaluation(id: string): void {
-  const evaluations = getEvaluations().filter((e) => e.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(evaluations));
+export async function deleteEvaluation(id: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.from('evaluations').delete().eq('id', id);
 }

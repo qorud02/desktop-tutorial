@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
 
   useEffect(() => {
-    setEvaluations(getEvaluations());
+    getEvaluations().then(setEvaluations);
   }, []);
 
   const total = evaluations.length;
