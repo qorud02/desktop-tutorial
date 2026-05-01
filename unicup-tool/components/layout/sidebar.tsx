@@ -1,9 +1,10 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, PlusCircle, List, Building2 } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, List, Building2, Zap, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LogoutButton } from './logout-button';
+import type { Plan } from '@/lib/subscription';
 
 const nav = [
   { href: '/', label: '대시보드', icon: LayoutDashboard },
@@ -11,7 +12,7 @@ const nav = [
   { href: '/evaluations', label: '저장된 평가', icon: List },
 ];
 
-export function Sidebar({ userEmail }: { userEmail: string }) {
+export function Sidebar({ userEmail, plan }: { userEmail: string; plan: Plan }) {
   const pathname = usePathname();
 
   return (
@@ -43,7 +44,43 @@ export function Sidebar({ userEmail }: { userEmail: string }) {
             </Link>
           );
         })}
+
+        {/* Pricing link */}
+        <Link
+          href="/pricing"
+          className={cn(
+            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+            pathname.startsWith('/pricing')
+              ? 'bg-white/15 text-white'
+              : 'text-blue-200 hover:bg-white/10 hover:text-white'
+          )}
+        >
+          <CreditCard className="h-4 w-4 flex-shrink-0" />
+          요금제
+        </Link>
       </nav>
+
+      {/* Plan badge + upgrade prompt */}
+      <div className="px-3 pb-3">
+        {plan === 'pro' ? (
+          <div className="flex items-center gap-2 rounded-lg bg-blue-600/20 border border-blue-400/30 px-3 py-2">
+            <Zap className="h-3.5 w-3.5 text-blue-300 flex-shrink-0" />
+            <span className="text-xs font-semibold text-blue-200">Pro 플랜</span>
+          </div>
+        ) : (
+          <Link
+            href="/pricing"
+            className="flex items-center justify-between rounded-lg bg-white/5 border border-white/10 px-3 py-2 hover:bg-white/10 transition-colors group"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-blue-300 font-medium">Free 플랜</span>
+            </div>
+            <span className="text-xs text-blue-400 group-hover:text-white transition-colors font-medium">
+              업그레이드 →
+            </span>
+          </Link>
+        )}
+      </div>
 
       <LogoutButton email={userEmail} />
     </aside>

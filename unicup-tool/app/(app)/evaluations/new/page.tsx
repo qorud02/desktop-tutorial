@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Users, DollarSign, Star, ArrowRight, ArrowLeft, Save } from 'lucide-react';
+import { MapPin, Users, DollarSign, Star, ArrowRight, ArrowLeft, Save, Lock, Zap } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { saveEvaluation } from '@/lib/storage';
+import { saveEvaluation, getEvaluations } from '@/lib/storage';
+import { isProUser, FREE_EVALUATION_LIMIT } from '@/lib/subscription';
 import type { EvaluationInput, AreaType } from '@/lib/types';
 import { AREA_TYPE_LABELS } from '@/lib/types';
 
@@ -45,6 +47,19 @@ export default function NewEvaluationPage() {
   const [input, setInput] = useState<EvaluationInput>(DEFAULT_INPUT);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [limitReached, setLimitReached] = useState<boolean | null>(null); // null = loading
+
+  // Check Free plan limit before showing the form
+  useEffect(() => {
+    (async () => {
+      const [pro, evaluations] = await Promise.all([isProUser(), getEvaluations()]);
+      if (!pro && evaluations.length >= FREE_EVALUATION_LIMIT) {
+        setLimitReached(true);
+      } else {
+        setLimitReached(false);
+      }
+    })();
+  }, []);
 
   const set = (field: keyof EvaluationInput, value: string | number) => {
     setInput((prev) => ({ ...prev, [field]: value }));
@@ -70,6 +85,44 @@ export default function NewEvaluationPage() {
       setSaving(false);
     }
   };
+
+  if (limitReached === null) {
+    return <div className="text-slate-400 text-sm">불러오는 중...</div>;
+  }
+
+  if (limitReached) {
+    return (
+      <div className="max-w-lg">
+        <Card className="border-amber-200">
+          <CardContent className="py-12 flex flex-col items-center text-center gap-5">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
+              <Lock className="h-7 w-7 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Free 플랜 한도 도달
+              </h2>
+              <p className="text-sm text-slate-500 mt-2">
+                Free 플랜은 최대 <strong>{FREE_EVALUATION_LIMIT}개</strong>의 후보지 평가를 저장할 수 있습니다.
+                <br />
+                Pro 플랜으로 업그레이드하면 무제한으로 저장할 수 있습니다.
+              </p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <Button asChild variant="outline" className="flex-1">
+                <Link href="/evaluations">저장된 평가 보기</Link>
+              </Button>
+              <Button asChild className="flex-1 gap-2">
+                <Link href="/pricing">
+                  <Zap className="h-4 w-4" /> Pro로 업그레이드
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl space-y-6">
