@@ -2,18 +2,20 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Edit, GitCompare, FileText, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+import { GitCompare, FileText, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { getEvaluation, deleteEvaluation } from '@/lib/storage';
 import { formatKRW, formatKRWFull, formatPercent, formatMonths } from '@/lib/utils';
 import { AREA_TYPE_LABELS } from '@/lib/types';
-import type { Evaluation } from '@/lib/types';
+import { useToast } from '@/components/ui/toast';
+import type { Evaluation, EvaluationInput, CalculationResult } from '@/lib/types';
 
 export default function EvaluationResultPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { toast } = useToast();
   const [ev, setEv] = useState<Evaluation | null>(null);
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export default function EvaluationResultPage() {
   const handleDelete = async () => {
     if (confirm('이 평가를 삭제하시겠습니까?')) {
       await deleteEvaluation(id);
+      toast(`"${input.locationName}" 평가가 삭제되었습니다.`, 'success');
       router.push('/evaluations');
     }
   };
@@ -125,6 +128,8 @@ export default function EvaluationResultPage() {
         <KpiCard label="임차료 비율" value={formatPercent(result.rentBurdenRatio)} sub={result.interpretations.rentBurdenRatio} positive={result.rentBurdenRatio <= 0.13} />
         <KpiCard label="투자 회수기간" value={formatMonths(result.paybackPeriod)} sub={result.interpretations.paybackPeriod} positive={result.paybackPeriod <= 24} />
       </div>
+
+      <ScoreBreakdown input={input} result={result} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
@@ -237,5 +242,59 @@ function ScoreItem({ label, score }: { label: string; score: number }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function scoreSalesVal(sales: number) { if (sales >= 30_000_000) return 25; if (sales >= 25_000_000) return 20; if (sales >= 20_000_000) return 15; if (sales >= 15_000_000) return 10; return 5; }
+function scoreProfitVal(profit: number) { if (profit >= 7_000_000) return 20; if (profit >= 5_000_000) return 16; if (profit >= 3_000_000) return 12; if (profit > 0) return 8; return 0; }
+function scoreRentVal(ratio: number) { if (ratio <= 0.08) return 15; if (ratio <= 0.10) return 12; if (ratio <= 0.13) return 8; return 3; }
+function scorePaybackVal(months: number) { if (months <= 18) return 15; if (months <= 24) return 10; if (months <= 36) return 5; return 0; }
+function scoreCompetitionVal(cafes: number) { if (cafes <= 3) return 10; if (cafes <= 7) return 6; return 2; }
+
+function ScoreBreakdown({ input, result }: { input: EvaluationInput; result: CalculationResult }) {
+  const qualitativeAvg = (input.frontVisibilityScore + input.trafficAccessibilityScore + input.groupOrderScore + input.operationDifficultyScore) / 4;
+  const qualScore = Math.round((qualitativeAvg / 5) * 15);
+
+  const items = [
+    { label: '월 예상매출', score: scoreSalesVal(result.monthlyExpectedSales), max: 25 },
+    { label: '월 영업이익', score: scoreProfitVal(result.monthlyOperatingProfit), max: 20 },
+    { label: '임차료 비율', score: scoreRentVal(result.rentBurdenRatio), max: 15 },
+    { label: '투자회수기간', score: scorePaybackVal(result.paybackPeriod), max: 15 },
+    { label: '경쟁강도', score: scoreCompetitionVal(input.nearbyCafes), max: 10 },
+    { label: '정성 평가', score: qualScore, max: 15 },
+  ];
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>항목별 점수 분석</CardTitle></CardHeader>
+      <CardContent className="space-y-3.5">
+        {items.map((item) => {
+          const pct = (item.score / item.max) * 100;
+          const color = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500';
+          return (
+            <div key={item.label} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600">{item.label}</span>
+                <span className="text-sm font-semibold tabular text-slate-800">
+                  {item.score}<span className="text-xs text-slate-400 font-normal">/{item.max}</span>
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-100">
+                <div
+                  className={`h-2 rounded-full transition-all ${color}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+          <span className="text-sm font-semibold text-slate-700">종합 점수</span>
+          <span className="text-sm font-bold text-[#1e3a5f] tabular">
+            {result.totalScore.toFixed(0)}<span className="text-xs text-slate-400 font-normal">/100</span>
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

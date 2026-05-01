@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { saveEvaluation, getEvaluations } from '@/lib/storage';
 import { isProUser, FREE_EVALUATION_LIMIT } from '@/lib/subscription';
+import { useToast } from '@/components/ui/toast';
 import type { EvaluationInput, AreaType } from '@/lib/types';
 import { AREA_TYPE_LABELS } from '@/lib/types';
 
@@ -39,10 +40,75 @@ const DEFAULT_INPUT: EvaluationInput = {
   locationMemo: '',
 };
 
+const AREA_TEMPLATES: Record<AreaType, Partial<EvaluationInput>> = {
+  office: {
+    operatingDays: 22,
+    dailyVisitors: 90,
+    avgTransactionValue: 8500,
+    grossMarginRate: 65,
+    monthlyRent: 2800000,
+    monthlyLaborCost: 3500000,
+    otherFixedCosts: 500000,
+    initialInvestment: 50000000,
+    nearbyCafes: 6,
+    groupOrderScore: 4,
+  },
+  station: {
+    operatingDays: 26,
+    dailyVisitors: 130,
+    avgTransactionValue: 7500,
+    grossMarginRate: 63,
+    monthlyRent: 4000000,
+    monthlyLaborCost: 4000000,
+    otherFixedCosts: 600000,
+    initialInvestment: 60000000,
+    nearbyCafes: 10,
+    trafficAccessibilityScore: 5,
+  },
+  residential: {
+    operatingDays: 25,
+    dailyVisitors: 55,
+    avgTransactionValue: 7000,
+    grossMarginRate: 66,
+    monthlyRent: 1500000,
+    monthlyLaborCost: 3000000,
+    otherFixedCosts: 400000,
+    initialInvestment: 40000000,
+    nearbyCafes: 3,
+    operationDifficultyScore: 4,
+  },
+  mixed_mall: {
+    operatingDays: 28,
+    dailyVisitors: 150,
+    avgTransactionValue: 9000,
+    grossMarginRate: 62,
+    monthlyRent: 5000000,
+    monthlyLaborCost: 4500000,
+    otherFixedCosts: 700000,
+    initialInvestment: 70000000,
+    nearbyCafes: 12,
+    frontVisibilityScore: 4,
+    trafficAccessibilityScore: 5,
+  },
+  university: {
+    operatingDays: 22,
+    dailyVisitors: 100,
+    avgTransactionValue: 6500,
+    grossMarginRate: 64,
+    monthlyRent: 2000000,
+    monthlyLaborCost: 3200000,
+    otherFixedCosts: 450000,
+    initialInvestment: 45000000,
+    nearbyCafes: 8,
+    groupOrderScore: 2,
+  },
+};
+
 const STEPS = ['기본 정보', '매출 가정', '비용 구조', '정성 평가'];
 
 export default function NewEvaluationPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [step, setStep] = useState(0);
   const [input, setInput] = useState<EvaluationInput>(DEFAULT_INPUT);
   const [saving, setSaving] = useState(false);
@@ -63,6 +129,12 @@ export default function NewEvaluationPage() {
 
   const set = (field: keyof EvaluationInput, value: string | number) => {
     setInput((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const applyTemplate = (areaType: AreaType) => {
+    const template = AREA_TEMPLATES[areaType];
+    setInput((prev) => ({ ...prev, areaType, ...template }));
+    toast(`${AREA_TYPE_LABELS[areaType]} 상권 기본값이 적용되었습니다.`, 'info');
   };
 
   const setNum = (field: keyof EvaluationInput) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,8 +223,8 @@ export default function NewEvaluationPage() {
                 onChange={(e) => set('locationName', e.target.value)}
               />
             </Field>
-            <Field label="상권 유형">
-              <Select value={input.areaType} onValueChange={(v) => set('areaType', v as AreaType)}>
+            <Field label="상권 유형" hint="선택 시 해당 상권의 전형적인 수치가 자동 입력됩니다.">
+              <Select value={input.areaType} onValueChange={(v) => applyTemplate(v as AreaType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

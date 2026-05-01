@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, PlusCircle, List, Building2, Zap, CreditCard } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, List, Building2, Zap, CreditCard, Settings, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LogoutButton } from './logout-button';
 import type { Plan } from '@/lib/subscription';
@@ -10,6 +10,11 @@ const nav = [
   { href: '/', label: '대시보드', icon: LayoutDashboard },
   { href: '/evaluations/new', label: '신규 평가', icon: PlusCircle },
   { href: '/evaluations', label: '저장된 평가', icon: List },
+];
+
+const bottomNav = [
+  { href: '/settings', label: '설정', icon: Settings },
+  { href: '/help', label: '도움말', icon: HelpCircle },
 ];
 
 export function Sidebar({ userEmail, plan }: { userEmail: string; plan: Plan }) {
@@ -58,6 +63,27 @@ export function Sidebar({ userEmail, plan }: { userEmail: string; plan: Plan }) 
           <CreditCard className="h-4 w-4 flex-shrink-0" />
           요금제
         </Link>
+
+        <div className="border-t border-white/10 mt-3 pt-3 space-y-1">
+          {bottomNav.map(({ href, label, icon: Icon }) => {
+            const active = pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-white/15 text-white'
+                    : 'text-blue-200/70 hover:bg-white/10 hover:text-white'
+                )}
+              >
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                {label}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Plan badge + upgrade prompt */}
