@@ -73,3 +73,12 @@ export async function deleteEvaluation(id: string): Promise<void> {
   const supabase = createClient();
   await supabase.from('evaluations').delete().eq('id', id);
 }
+
+export async function duplicateEvaluation(id: string): Promise<Evaluation> {
+  const original = await getEvaluation(id);
+  if (!original) throw new Error('원본 평가를 찾을 수 없습니다.');
+  return saveEvaluation({
+    ...original.input,
+    locationName: `${original.input.locationName} (복사본)`,
+  });
+}

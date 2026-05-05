@@ -2,11 +2,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { GitCompare, FileText, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+import { GitCompare, FileText, Trash2, AlertCircle, CheckCircle, Pencil, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { getEvaluation, deleteEvaluation } from '@/lib/storage';
+import { getEvaluation, deleteEvaluation, duplicateEvaluation } from '@/lib/storage';
 import { formatKRW, formatKRWFull, formatPercent, formatMonths } from '@/lib/utils';
 import { AREA_TYPE_LABELS } from '@/lib/types';
 import { useToast } from '@/components/ui/toast';
@@ -37,6 +37,16 @@ export default function EvaluationResultPage() {
     }
   };
 
+  const handleDuplicate = async () => {
+    try {
+      const dup = await duplicateEvaluation(id);
+      toast(`"${dup.input.locationName}"으로 복사되었습니다.`, 'success');
+      router.push(`/evaluations/${dup.id}`);
+    } catch {
+      toast('복사 중 오류가 발생했습니다.', 'error');
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -46,11 +56,16 @@ export default function EvaluationResultPage() {
             <DecisionBadge decision={result.decision} large />
           </div>
           <p className="text-sm text-slate-400 mt-1">
-            {AREA_TYPE_LABELS[input.areaType]} · 평가일:{' '}
+            {AREA_TYPE_LABELS[input.areaType]}{input.address ? ` · ${input.address}` : ''} · 평가일:{' '}
             {new Date(ev.createdAt).toLocaleDateString('ko-KR')}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/evaluations/${id}/edit`} className="flex items-center gap-1.5">
+              <Pencil className="h-3.5 w-3.5" /> 수정
+            </Link>
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link href={`/evaluations/${id}/scenarios`} className="flex items-center gap-1.5">
               <GitCompare className="h-3.5 w-3.5" /> 시나리오
@@ -60,6 +75,9 @@ export default function EvaluationResultPage() {
             <Link href={`/evaluations/${id}/report`} className="flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5" /> 1페이지 리포트
             </Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDuplicate} className="gap-1.5">
+            <Copy className="h-3.5 w-3.5" /> 복사
           </Button>
           <Button
             variant="outline"

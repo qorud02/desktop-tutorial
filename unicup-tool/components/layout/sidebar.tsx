@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, PlusCircle, List, Building2, Zap, CreditCard, Settings, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, List, Building2, Zap, CreditCard, Settings, HelpCircle, GitCompare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LogoutButton } from './logout-button';
 import type { Plan } from '@/lib/subscription';
@@ -10,6 +10,7 @@ const nav = [
   { href: '/', label: '대시보드', icon: LayoutDashboard },
   { href: '/evaluations/new', label: '신규 평가', icon: PlusCircle },
   { href: '/evaluations', label: '저장된 평가', icon: List },
+  { href: '/compare', label: '후보지 비교', icon: GitCompare },
 ];
 
 const bottomNav = [

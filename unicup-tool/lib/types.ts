@@ -16,6 +16,7 @@ export const AREA_TYPE_LABELS: Record<AreaType, string> = {
 export interface EvaluationInput {
   locationName: string;
   areaType: AreaType;
+  address?: string;          // 카카오 주소 검색으로 선택된 도로명/지번 주소
   operatingDays: number;
   dailyVisitors: number;
   avgTransactionValue: number;

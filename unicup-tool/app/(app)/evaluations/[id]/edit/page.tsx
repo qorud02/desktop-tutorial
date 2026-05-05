@@ -1,209 +1,71 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { MapPin, Users, DollarSign, Star, ArrowRight, ArrowLeft, Save, Lock, Zap } from 'lucide-react';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { Users, DollarSign, Star, ArrowRight, ArrowLeft, Save, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { saveEvaluation, getEvaluations } from '@/lib/storage';
-import { isProUser, FREE_EVALUATION_LIMIT } from '@/lib/subscription';
+import { getEvaluation, saveEvaluation } from '@/lib/storage';
 import { useToast } from '@/components/ui/toast';
 import { AddressSearch } from '@/components/address-search';
 import type { EvaluationInput, AreaType } from '@/lib/types';
 import { AREA_TYPE_LABELS } from '@/lib/types';
 
-const DEFAULT_INPUT: EvaluationInput = {
-  locationName: '',
-  areaType: 'office',
-  operatingDays: 25,
-  dailyVisitors: 80,
-  avgTransactionValue: 8000,
-  grossMarginRate: 65,
-  monthlyRent: 2500000,
-  monthlyLaborCost: 3500000,
-  otherFixedCosts: 500000,
-  initialInvestment: 50000000,
-  nearbyCafes: 5,
-  frontVisibilityScore: 3,
-  trafficAccessibilityScore: 3,
-  groupOrderScore: 3,
-  operationDifficultyScore: 3,
-  locationMemo: '',
-};
-
-const AREA_TEMPLATES: Record<AreaType, Partial<EvaluationInput>> = {
-  office: {
-    operatingDays: 22,
-    dailyVisitors: 90,
-    avgTransactionValue: 8500,
-    grossMarginRate: 65,
-    monthlyRent: 2800000,
-    monthlyLaborCost: 3500000,
-    otherFixedCosts: 500000,
-    initialInvestment: 50000000,
-    nearbyCafes: 6,
-    groupOrderScore: 4,
-  },
-  station: {
-    operatingDays: 26,
-    dailyVisitors: 130,
-    avgTransactionValue: 7500,
-    grossMarginRate: 63,
-    monthlyRent: 4000000,
-    monthlyLaborCost: 4000000,
-    otherFixedCosts: 600000,
-    initialInvestment: 60000000,
-    nearbyCafes: 10,
-    trafficAccessibilityScore: 5,
-  },
-  residential: {
-    operatingDays: 25,
-    dailyVisitors: 55,
-    avgTransactionValue: 7000,
-    grossMarginRate: 66,
-    monthlyRent: 1500000,
-    monthlyLaborCost: 3000000,
-    otherFixedCosts: 400000,
-    initialInvestment: 40000000,
-    nearbyCafes: 3,
-    operationDifficultyScore: 4,
-  },
-  mixed_mall: {
-    operatingDays: 28,
-    dailyVisitors: 150,
-    avgTransactionValue: 9000,
-    grossMarginRate: 62,
-    monthlyRent: 5000000,
-    monthlyLaborCost: 4500000,
-    otherFixedCosts: 700000,
-    initialInvestment: 70000000,
-    nearbyCafes: 12,
-    frontVisibilityScore: 4,
-    trafficAccessibilityScore: 5,
-  },
-  university: {
-    operatingDays: 22,
-    dailyVisitors: 100,
-    avgTransactionValue: 6500,
-    grossMarginRate: 64,
-    monthlyRent: 2000000,
-    monthlyLaborCost: 3200000,
-    otherFixedCosts: 450000,
-    initialInvestment: 45000000,
-    nearbyCafes: 8,
-    groupOrderScore: 2,
-  },
-};
-
 const STEPS = ['기본 정보', '매출 가정', '비용 구조', '정성 평가'];
 
-export default function NewEvaluationPage() {
+export default function EditEvaluationPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { toast } = useToast();
   const [step, setStep] = useState(0);
-  const [input, setInput] = useState<EvaluationInput>(DEFAULT_INPUT);
+  const [input, setInput] = useState<EvaluationInput | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
-  const [limitReached, setLimitReached] = useState<boolean | null>(null); // null = loading
 
-  // Check Free plan limit before showing the form
   useEffect(() => {
-    (async () => {
-      const [pro, evaluations] = await Promise.all([isProUser(), getEvaluations()]);
-      if (!pro && evaluations.length >= FREE_EVALUATION_LIMIT) {
-        setLimitReached(true);
-      } else {
-        setLimitReached(false);
-      }
-    })();
-  }, []);
+    getEvaluation(id).then((ev) => {
+      if (!ev) router.push('/evaluations');
+      else setInput(ev.input);
+    });
+  }, [id, router]);
 
-  const set = (field: keyof EvaluationInput, value: string | number) => {
-    setInput((prev) => ({ ...prev, [field]: value }));
-  };
+  const set = (field: keyof EvaluationInput, value: string | number) =>
+    setInput((prev) => prev ? { ...prev, [field]: value } : prev);
 
-  const applyTemplate = (areaType: AreaType) => {
-    const template = AREA_TEMPLATES[areaType];
-    setInput((prev) => ({ ...prev, areaType, ...template }));
-    toast(`${AREA_TYPE_LABELS[areaType]} 상권 기본값이 적용되었습니다.`, 'info');
-  };
-
-  const setNum = (field: keyof EvaluationInput) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const setNum = (field: keyof EvaluationInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
     set(field, Number(e.target.value));
-  };
 
   const handleSubmit = async () => {
-    if (!input.locationName.trim()) {
-      alert('후보 입지 이름을 입력하세요.');
-      setStep(0);
-      return;
-    }
+    if (!input) return;
+    if (!input.locationName.trim()) { alert('후보 입지 이름을 입력하세요.'); setStep(0); return; }
     setSaving(true);
-    setSaveError('');
     try {
-      const saved = await saveEvaluation(input);
-      router.push(`/evaluations/${saved.id}`);
+      await saveEvaluation(input, id);
+      toast('평가가 수정되었습니다.', 'success');
+      router.push(`/evaluations/${id}`);
     } catch {
-      setSaveError('저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      toast('저장 중 오류가 발생했습니다.', 'error');
       setSaving(false);
     }
   };
 
-  if (limitReached === null) {
-    return <div className="text-slate-400 text-sm">불러오는 중...</div>;
-  }
-
-  if (limitReached) {
-    return (
-      <div className="max-w-lg">
-        <Card className="border-amber-200">
-          <CardContent className="py-12 flex flex-col items-center text-center gap-5">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
-              <Lock className="h-7 w-7 text-amber-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                Free 플랜 한도 도달
-              </h2>
-              <p className="text-sm text-slate-500 mt-2">
-                Free 플랜은 최대 <strong>{FREE_EVALUATION_LIMIT}개</strong>의 후보지 평가를 저장할 수 있습니다.
-                <br />
-                Pro 플랜으로 업그레이드하면 무제한으로 저장할 수 있습니다.
-              </p>
-            </div>
-            <div className="flex gap-3 w-full">
-              <Button asChild variant="outline" className="flex-1">
-                <Link href="/evaluations">저장된 평가 보기</Link>
-              </Button>
-              <Button asChild className="flex-1 gap-2">
-                <Link href="/pricing">
-                  <Zap className="h-4 w-4" /> Pro로 업그레이드
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (!input) return <div className="text-slate-400 text-sm">불러오는 중...</div>;
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">신규 입지 평가</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          후보 입지 정보를 입력하여 자동으로 매출과 수익성을 분석합니다.
-        </p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">평가 수정</h1>
+          <p className="text-sm text-slate-500 mt-1">{input.locationName}</p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/evaluations/${id}`}>← 결과로 돌아가기</Link>
+        </Button>
       </div>
 
       <StepIndicator steps={STEPS} current={step} />
@@ -217,7 +79,7 @@ export default function NewEvaluationPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            <Field label="후보 입지명 *" hint="예: 강남역 10번 출구 앞">
+            <Field label="후보 입지명 *">
               <Input
                 placeholder="후보 입지명을 입력하세요"
                 value={input.locationName}
@@ -231,11 +93,9 @@ export default function NewEvaluationPage() {
                 onNearbyCafes={(count) => set('nearbyCafes', count)}
               />
             </Field>
-            <Field label="상권 유형" hint="선택 시 해당 상권의 전형적인 수치가 자동 입력됩니다.">
-              <Select value={input.areaType} onValueChange={(v) => applyTemplate(v as AreaType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+            <Field label="상권 유형">
+              <Select value={input.areaType} onValueChange={(v) => set('areaType', v as AreaType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.entries(AREA_TYPE_LABELS) as [AreaType, string][]).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -243,7 +103,7 @@ export default function NewEvaluationPage() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="메모 / 특이사항" hint="현장 방문 메모, 계약 조건 특이사항 등">
+            <Field label="메모 / 특이사항">
               <Textarea
                 placeholder="현장 메모를 입력하세요 (선택)"
                 value={input.locationMemo}
@@ -276,7 +136,7 @@ export default function NewEvaluationPage() {
               <Field label="평균 객단가" hint="원">
                 <Input type="number" min={0} step={500} value={input.avgTransactionValue} onChange={setNum('avgTransactionValue')} />
               </Field>
-              <Field label="매출총이익률" hint="% (예: 65)">
+              <Field label="매출총이익률" hint="%">
                 <Input type="number" min={0} max={100} value={input.grossMarginRate} onChange={setNum('grossMarginRate')} />
               </Field>
             </div>
@@ -323,7 +183,7 @@ export default function NewEvaluationPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            <Field label="인근 카페 수" hint="개 (경쟁 강도 기준)">
+            <Field label="인근 카페 수" hint="개 — 주소 검색 시 자동 입력됩니다">
               <Input type="number" min={0} value={input.nearbyCafes} onChange={setNum('nearbyCafes')} />
             </Field>
             <div className="grid grid-cols-2 gap-4">
@@ -334,12 +194,6 @@ export default function NewEvaluationPage() {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {saveError && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
-          {saveError}
-        </p>
       )}
 
       <div className="flex items-center justify-between">
@@ -353,7 +207,7 @@ export default function NewEvaluationPage() {
         ) : (
           <Button onClick={handleSubmit} disabled={saving}>
             <Save className="h-4 w-4 mr-1" />
-            {saving ? '저장 중...' : '평가 저장 및 결과 보기'}
+            {saving ? '저장 중...' : '수정 완료 및 결과 보기'}
           </Button>
         )}
       </div>
@@ -367,20 +221,12 @@ function StepIndicator({ steps, current }: { steps: string[]; current: number })
       {steps.map((s, i) => (
         <div key={s} className="flex items-center flex-1 last:flex-none">
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold border-2 transition-colors ${
-                i < current
-                  ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white'
-                  : i === current
-                    ? 'border-[#1e3a5f] bg-white text-[#1e3a5f]'
-                    : 'border-slate-300 bg-white text-slate-400'
-              }`}
-            >
-              {i + 1}
-            </div>
-            <span className={`text-sm font-medium ${i === current ? 'text-[#1e3a5f]' : 'text-slate-400'}`}>
-              {s}
-            </span>
+            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold border-2 transition-colors ${
+              i < current ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white'
+                : i === current ? 'border-[#1e3a5f] bg-white text-[#1e3a5f]'
+                : 'border-slate-300 bg-white text-slate-400'
+            }`}>{i + 1}</div>
+            <span className={`text-sm font-medium ${i === current ? 'text-[#1e3a5f]' : 'text-slate-400'}`}>{s}</span>
           </div>
           {i < steps.length - 1 && (
             <div className={`h-0.5 flex-1 mx-3 ${i < current ? 'bg-[#1e3a5f]' : 'bg-slate-200'}`} />
@@ -408,18 +254,11 @@ function ScoreField({ label, value, onChange, hint }: { label: string; value: nu
       {hint && <p className="text-xs text-slate-400">{hint}</p>}
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onChange(n)}
+          <button key={n} type="button" onClick={() => onChange(n)}
             className={`flex-1 rounded py-1.5 text-sm font-semibold border transition-colors ${
-              n <= value
-                ? 'bg-[#1e3a5f] text-white border-[#1e3a5f]'
-                : 'bg-white text-slate-400 border-slate-200 hover:border-slate-400'
+              n <= value ? 'bg-[#1e3a5f] text-white border-[#1e3a5f]' : 'bg-white text-slate-400 border-slate-200 hover:border-slate-400'
             }`}
-          >
-            {n}
-          </button>
+          >{n}</button>
         ))}
       </div>
     </div>
