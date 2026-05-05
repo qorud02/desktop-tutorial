@@ -56,9 +56,12 @@ export async function saveEvaluation(
     if (data) return rowToEvaluation(data);
   }
 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('로그인이 필요합니다.');
+
   const { data, error } = await supabase
     .from('evaluations')
-    .insert({ input, result, scenarios })
+    .insert({ user_id: user.id, input, result, scenarios })
     .select()
     .single();
 
