@@ -17,8 +17,6 @@ interface Props {
   onNearbyCafes?: (count: number) => void;
 }
 
-type KeyStatus = 'checking' | 'ok' | 'missing';
-
 export function AddressSearch({ value, onChange, onCoordsFound, onNearbyCafes }: Props) {
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<AddressDoc[]>([]);
@@ -26,44 +24,44 @@ export function AddressSearch({ value, onChange, onCoordsFound, onNearbyCafes }:
   const [loading, setLoading] = useState(false);
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyCafeCount, setNearbyCafeCount] = useState<number | null>(null);
-  const [keyStatus, setKeyStatus] = useState<KeyStatus>('checking');
+  const [errorMsg, setErrorMsg] = useState('');
   const [noResults, setNoResults] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 마운트 시 API 키 설정 여부 즉시 확인
-  useEffect(() => {
-    fetch('/api/kakao/address?q=서울')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error?.includes('미설정')) {
-          setKeyStatus('missing');
-        } else {
-          setKeyStatus('ok');
-        }
-      })
-      .catch(() => setKeyStatus('missing'));
-  }, []);
-
   const search = useCallback(async (q: string) => {
-    if (!q || q.length < 2) { setResults([]); setOpen(false); setNoResults(false); return; }
+    if (!q || q.length < 2) {
+      setResults([]); setOpen(false); setNoResults(false); setErrorMsg('');
+      return;
+    }
     setLoading(true);
     setNoResults(false);
+    setErrorMsg('');
     try {
       const res = await fetch(`/api/kakao/address?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      if (data.error?.includes('미설정')) { setKeyStatus('missing'); return; }
+
+      if (data.error?.includes('미설정')) {
+        setErrorMsg('KAKAO_REST_API_KEY가 .env.local에 없습니다. 직접 주소를 입력하세요.');
+        setResults([]); setOpen(false);
+        return;
+      }
+      if (data.error) {
+        setErrorMsg(`API 오류: ${data.error}`);
+        setResults([]); setOpen(false);
+        return;
+      }
+
       const docs: AddressDoc[] = data.documents ?? [];
       setResults(docs);
       if (docs.length > 0) {
         setOpen(true);
-        setNoResults(false);
       } else {
         setOpen(false);
         setNoResults(true);
       }
     } catch {
-      setKeyStatus('missing');
+      setErrorMsg('네트워크 오류가 발생했습니다. 직접 주소를 입력하세요.');
     } finally {
       setLoading(false);
     }
@@ -89,6 +87,7 @@ export function AddressSearch({ value, onChange, onCoordsFound, onNearbyCafes }:
     onChange('');
     setNearbyCafeCount(null);
     setNoResults(false);
+    setErrorMsg('');
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => search(val), 400);
   };
@@ -113,49 +112,6 @@ export function AddressSearch({ value, onChange, onCoordsFound, onNearbyCafes }:
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // API 키 미설정 UI
-  if (keyStatus === 'missing') {
-    return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
-        <div className="flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-amber-800">카카오 API 키가 설정되지 않았습니다</p>
-            <p className="text-xs text-amber-600 mt-1">
-              <code className="bg-amber-100 px-1 rounded font-mono">KAKAO_REST_API_KEY</code>를{' '}
-              <code className="bg-amber-100 px-1 rounded font-mono">.env.local</code>에 추가하고 서버를 재시작하세요.
-            </p>
-          </div>
-        </div>
-        <a
-          href="https://developers.kakao.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-        >
-          카카오 개발자 센터에서 무료 발급 <ExternalLink className="h-3 w-3" />
-        </a>
-        <Input
-          className="text-sm bg-white"
-          placeholder="직접 주소 입력 (선택 사항)"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); }}
-        />
-      </div>
-    );
-  }
-
-  // 확인 중
-  if (keyStatus === 'checking') {
-    return (
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300 animate-spin" />
-        <Input className="pl-9 pr-9 text-slate-300" placeholder="주소 검색 초기화 중..." disabled />
-      </div>
-    );
-  }
-
   return (
     <div ref={containerRef} className="relative space-y-2">
       <div className="relative">
@@ -172,6 +128,7 @@ export function AddressSearch({ value, onChange, onCoordsFound, onNearbyCafes }:
         />
       </div>
 
+      {/* 드롭다운 결과 */}
       {open && results.length > 0 && (
         <div className="absolute z-50 w-full rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
           {results.map((doc, i) => (
@@ -188,10 +145,32 @@ export function AddressSearch({ value, onChange, onCoordsFound, onNearbyCafes }:
         </div>
       )}
 
-      {noResults && query.length >= 2 && !loading && (
+      {/* 에러 메시지 */}
+      {errorMsg && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-xs text-amber-700">{errorMsg}</p>
+            {errorMsg.includes('미설정') && (
+              <a
+                href="https://developers.kakao.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+              >
+                카카오 개발자 센터 <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 결과 없음 */}
+      {noResults && !errorMsg && query.length >= 2 && !loading && (
         <p className="text-xs text-slate-400 px-1">검색 결과가 없습니다. 더 구체적인 주소를 입력해보세요.</p>
       )}
 
+      {/* 선택된 주소 */}
       {value && (
         <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
           <MapPin className="h-4 w-4 text-blue-500 flex-shrink-0" />
