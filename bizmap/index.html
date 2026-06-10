@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BIZ map — 상권분석 보고서</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── 상단 헤더 ───────────────────────────── -->
+  <header class="gnb">
+    <div class="gnb-left">
+      <a class="logo" href="#"><span class="logo-strong">BIZ</span>&nbsp;bizmap<span class="logo-dot">˙</span></a>
+      <nav class="gnb-menu">
+        <a href="#" class="active">홈</a>
+        <a href="#">탐색 <span class="caret">▾</span></a>
+        <a href="#">뉴스</a>
+        <a href="#">가격</a>
+        <a href="#">고객지원</a>
+      </nav>
+    </div>
+    <div class="gnb-right">
+      <a href="#" class="gnb-link">기업 문의</a>
+      <a href="#" class="gnb-login">로그인 / 회원가입</a>
+    </div>
+  </header>
+
+  <!-- ── 지도 ───────────────────────────────── -->
+  <main class="map-wrap">
+    <div id="map"></div>
+
+    <!-- 보고서 생성 패널 -->
+    <aside class="report-panel" id="report-panel">
+      <h2 class="panel-title"><span class="panel-icon">📊</span> 보고서 생성하기</h2>
+
+      <div class="field">
+        <label>분석지역</label>
+        <input type="text" id="region-input" placeholder="행정동, 지하철역, 상호명 입력" autocomplete="off" />
+        <ul class="suggest" id="region-suggest"></ul>
+      </div>
+
+      <div class="field">
+        <label>분석업종</label>
+        <input type="text" id="category-input" placeholder="업종 입력" autocomplete="off" />
+        <ul class="suggest" id="category-suggest"></ul>
+      </div>
+
+      <button class="generate-btn" id="generate-btn" disabled>보고서 생성 (<span id="quota-used">0</span>/5)</button>
+
+      <p class="panel-note">매일 최대 5회, 보고서를 <a href="#">무료로 생성</a> 해보세요.</p>
+    </aside>
+
+    <!-- 지도 타입 / 줌 컨트롤 -->
+    <div class="map-type-control">
+      <button class="map-type-btn active" data-type="base">일반</button>
+      <button class="map-type-btn" data-type="satellite">위성</button>
+      <button class="map-type-btn" data-type="terrain">지형</button>
+    </div>
+    <div class="zoom-control">
+      <button id="zoom-in" aria-label="확대">+</button>
+      <button id="zoom-out" aria-label="축소">−</button>
+    </div>
+  </main>
+
+  <!-- ── 보고서 모달 ─────────────────────────── -->
+  <div class="report-overlay" id="report-overlay" hidden>
+    <div class="report-modal">
+      <header class="report-header">
+        <div>
+          <span class="report-badge">상권분석 보고서</span>
+          <h2 id="report-title">—</h2>
+          <p class="report-sub" id="report-sub">—</p>
+        </div>
+        <button class="report-close" id="report-close" aria-label="닫기">✕</button>
+      </header>
+
+      <div class="report-body">
+        <!-- 종합 요약 -->
+        <section class="report-section">
+          <div class="summary-grid" id="summary-grid"></div>
+        </section>
+
+        <!-- 추정 매출 -->
+        <section class="report-section">
+          <h3>월별 추정 매출 추이</h3>
+          <p class="section-desc" id="sales-desc"></p>
+          <div class="chart-box"><canvas id="chart-sales"></canvas></div>
+        </section>
+
+        <!-- 유동인구 -->
+        <section class="report-section">
+          <h3>시간대별 유동인구</h3>
+          <p class="section-desc" id="traffic-desc"></p>
+          <div class="chart-box"><canvas id="chart-traffic"></canvas></div>
+        </section>
+
+        <div class="report-cols">
+          <!-- 인구 구성 -->
+          <section class="report-section">
+            <h3>연령대별 고객 구성</h3>
+            <div class="chart-box chart-box-sm"><canvas id="chart-age"></canvas></div>
+          </section>
+          <!-- 업소 현황 -->
+          <section class="report-section">
+            <h3>동일업종 업소 수 추이</h3>
+            <div class="chart-box chart-box-sm"><canvas id="chart-stores"></canvas></div>
+          </section>
+        </div>
+
+        <!-- 입지 평가 -->
+        <section class="report-section">
+          <h3>입지 평가</h3>
+          <ul class="eval-list" id="eval-list"></ul>
+        </section>
+
+        <p class="report-footnote">※ 본 보고서는 데모용 추정 데이터로 생성되었으며 실제 상권 정보와 다를 수 있습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 -->
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="vendor/chart.umd.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
