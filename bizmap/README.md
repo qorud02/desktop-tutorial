@@ -24,4 +24,4 @@ python3 -m http.server 8000
 ```
 
 Leaflet과 Chart.js는 `vendor/`에 포함되어 있어 외부 CDN 없이 동작하며,
-지도 타일만 OpenStreetMap 서버에서 불러옵니다.
+지도 타일은 OpenStreetMap·Esri·OpenTopoMap 서버에서, 글꼴은 Google Fonts에서 불러오므로 외부 리소스에는 네트워크 연결이 필요합니다.
