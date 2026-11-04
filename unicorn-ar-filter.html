@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UNICUP COFFEE — Unicorn AR Filter</title>
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #1B2A4A;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #fff;
+      user-select: none;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 26px;
+    }
+
+    .header-gem {
+      width: 6px;
+      height: 6px;
+      background: #FFD700;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    }
+
+    .header-title {
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(255, 215, 0, 0.75);
+    }
+
+    /* ── Camera Frame ── */
+    .camera-frame {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #0D1929;
+      box-shadow:
+        0 0 0 1px rgba(255, 215, 0, 0.13),
+        0 32px 80px rgba(0, 0, 0, 0.65),
+        0 0 80px rgba(255, 215, 0, 0.05);
+    }
+
+    video {
+      display: none;
+    }
+
+    canvas {
+      display: block;
+      width: 640px;
+      height: 480px;
+    }
+
+    @media (max-width: 680px) {
+      canvas {
+        width: 100vw;
+        height: calc(100vw * 0.75);
+      }
+    }
+
+    /* ── Status Pill ── */
+    .status-pill {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(10, 20, 38, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 6px 15px;
+      border-radius: 100px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #444;
+      transition: background 0.4s;
+      flex-shrink: 0;
+    }
+
+    .status-dot.loading  { background: #444; }
+    .status-dot.scanning { background: #FFD700; animation: blink 1.3s ease-in-out infinite; }
+    .status-dot.active   { background: #3DBA6F; }
+    .status-dot.error    { background: #E74C3C; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.2; }
+    }
+
+    .status-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* ── Controls ── */
+    .controls {
+      margin-top: 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .capture-btn {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: linear-gradient(135deg, #FFD700 0%, #F5A623 100%);
+      color: #1B2A4A;
+      border: none;
+      padding: 14px 40px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+      box-shadow: 0 6px 24px rgba(255, 165, 0, 0.38);
+      outline: none;
+    }
+
+    .capture-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 34px rgba(255, 165, 0, 0.55);
+    }
+
+    .capture-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 3px 12px rgba(255, 165, 0, 0.28);
+    }
+
+    .capture-btn.flash {
+      background: linear-gradient(135deg, #FFFFFF 0%, #FFE08A 100%);
+    }
+
+    .capture-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    /* ── Footer ── */
+    .footer-text {
+      margin-top: 20px;
+      font-size: 10px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.16);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-gem"></div>
+    <span class="header-title">Unicorn AR Filter</span>
+    <div class="header-gem"></div>
+  </div>
+
+  <div class="camera-frame">
+    <video id="video" playsinline></video>
+    <canvas id="canvas"></canvas>
+    <div class="status-pill">
+      <div class="status-dot loading" id="statusDot"></div>
+      <span class="status-label" id="statusLabel">Initializing</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="capture-btn" id="captureBtn">
+      <span class="capture-icon">◎</span>
+      Capture
+    </button>
+  </div>
+
+  <p class="footer-text">Unicup Coffee · AR Experience</p>
+
+  <!-- MediaPipe CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+  <script>
+    // ── DOM refs ─────────────────────────────────────────────────
+    const video      = document.getElementById('video');
+    const canvas     = document.getElementById('canvas');
+    const ctx        = canvas.getContext('2d');
+    const statusDot  = document.getElementById('statusDot');
+    const statusLbl  = document.getElementById('statusLabel');
+    const captureBtn = document.getElementById('captureBtn');
+
+    canvas.width  = 640;
+    canvas.height = 480;
+
+    // ── Status helper ─────────────────────────────────────────────
+    function setStatus(state, text) {
+      statusDot.className = 'status-dot ' + state;
+      statusLbl.textContent = text;
+    }
+
+    // ── Landmark → canvas (mirrored) ─────────────────────────────
+    function lp(lm, i) {
+      return {
+        x: (1 - lm[i].x) * canvas.width,
+        y: lm[i].y * canvas.height,
+      };
+    }
+
+    // ── Draw unicorn horn ─────────────────────────────────────────
+    //
+    //  cx, cy  : base centre on canvas
+    //  size    : ~18% of face width; drives H and B
+    //  tilt    : head roll angle (radians)
+    //
+    function drawHorn(cx, cy, size, tilt) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(tilt);
+
+      const H = size * 2.85;   // horn height
+      const B = size * 0.72;   // base half-width
+
+      // Cone path helper (reused several times)
+      function cone() {
+        ctx.beginPath();
+        ctx.moveTo(-B, 0);
+        ctx.lineTo(0, -H);
+        ctx.lineTo(B, 0);
+        ctx.closePath();
+      }
+
+      // ── Pass 1: golden glow around horn ──
+      cone();
+      ctx.shadowColor = 'rgba(255, 215, 0, 0.85)';
+      ctx.shadowBlur  = 26;
+      ctx.fillStyle   = 'rgba(255, 200, 50, 1)'; // opaque → full-strength shadow
+      ctx.fill();
+      ctx.shadowBlur  = 0;
+
+      // ── Pass 2: gradient body (clipped inside cone) ──
+      ctx.save();
+      cone();
+      ctx.clip();
+
+      // Left-to-right gradient → rounded 3-D cylinder look
+      const gx = ctx.createLinearGradient(-B, 0, B, 0);
+      gx.addColorStop(0.00, '#5C3A00');
+      gx.addColorStop(0.14, '#C8860A');
+      gx.addColorStop(0.40, '#FFE680');
+      gx.addColorStop(0.52, '#FFF8C0');
+      gx.addColorStop(0.80, '#C8860A');
+      gx.addColorStop(1.00, '#5C3A00');
+      ctx.fillStyle = gx;
+      ctx.fillRect(-B, -H, B * 2, H);
+
+      // Bottom→tip darkening (depth)
+      const gy = ctx.createLinearGradient(0, 0, 0, -H);
+      gy.addColorStop(0, 'rgba(0,0,0,0.00)');
+      gy.addColorStop(1, 'rgba(0,0,0,0.34)');
+      ctx.fillStyle = gy;
+      ctx.fillRect(-B, -H, B * 2, H);
+
+      // ── Spiral helix ridge ──
+      // Parametric: x = halfWidth(t) * sin(turns * 2π * t)
+      const TURNS = 2.5, STEPS = 140;
+      ctx.strokeStyle = 'rgba(110, 66, 0, 0.62)';
+      ctx.lineWidth   = Math.max(0.9, B * 0.11);
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      ctx.beginPath();
+      for (let i = 0; i <= STEPS; i++) {
+        const t  = i / STEPS;
+        const hw = B * (1 - t);
+        const sx = hw * Math.sin(TURNS * 2 * Math.PI * t);
+        const sy = -H * t;
+        i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+
+      // Second helix offset by half-turn for the woven look
+      ctx.strokeStyle = 'rgba(200, 140, 0, 0.28)';
+      ctx.lineWidth   = Math.max(0.6, B * 0.07);
+      ctx.beginPath();
+      for (let i = 0; i <= STEPS; i++) {
+        const t  = i / STEPS;
+        const hw = B * (1 - t);
+        const sx = hw * Math.sin(TURNS * 2 * Math.PI * t + Math.PI);
+        const sy = -H * t;
+        i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+
+      // ── Specular highlight ──
+      ctx.strokeStyle = 'rgba(255, 252, 210, 0.82)';
+      ctx.lineWidth   = Math.max(0.5, B * 0.068);
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-B * 0.30, -H * 0.04);
+      ctx.quadraticCurveTo(-B * 0.10, -H * 0.50, -B * 0.02, -H * 0.91);
+      ctx.stroke();
+
+      ctx.restore(); // ← ends clip
+
+      // ── Pass 3: subtle edge outline ──
+      cone();
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.28)';
+      ctx.lineWidth   = 1.2;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // ── Draw watermark on canvas ──────────────────────────────────
+    function drawWatermark() {
+      ctx.save();
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.shadowColor  = 'rgba(0,0,0,0.75)';
+      ctx.shadowBlur   = 8;
+      ctx.fillStyle    = 'rgba(255, 215, 0, 0.58)';
+      ctx.font         = '500 12px "Segoe UI", system-ui, sans-serif';
+
+      // letterSpacing is supported in modern browsers (Chrome 99+, Firefox 95+)
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '5px';
+
+      ctx.fillText('UNICUP  COFFEE', canvas.width / 2, canvas.height - 12);
+      ctx.restore();
+    }
+
+    // ── MediaPipe results ─────────────────────────────────────────
+    function onResults(results) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw mirrored webcam feed
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.translate(-canvas.width, 0);
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      if (results.multiFaceLandmarks?.length > 0) {
+        const lm = results.multiFaceLandmarks[0];
+
+        // Landmark 10  → top-centre of forehead (horn anchor)
+        // Landmark 234 → left face contour
+        // Landmark 454 → right face contour
+        const top   = lp(lm, 10);
+        const left  = lp(lm, 234);
+        const right = lp(lm, 454);
+
+        const faceW = Math.hypot(right.x - left.x, right.y - left.y);
+        const tilt  = Math.atan2(right.y - left.y, right.x - left.x);
+        const size  = faceW * 0.175;
+
+        drawHorn(top.x, top.y, size, tilt);
+        setStatus('active', 'Face detected');
+      } else {
+        setStatus('scanning', 'Searching...');
+      }
+
+      drawWatermark();
+    }
+
+    // ── MediaPipe Face Mesh ───────────────────────────────────────
+    const faceMesh = new FaceMesh({
+      locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+    });
+
+    faceMesh.setOptions({
+      maxNumFaces:            1,
+      refineLandmarks:        false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence:  0.5,
+    });
+
+    faceMesh.onResults(onResults);
+
+    // ── Camera ────────────────────────────────────────────────────
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await faceMesh.send({ image: video });
+      },
+      width:  640,
+      height: 480,
+    });
+
+    setStatus('loading', 'Starting camera...');
+
+    camera.start()
+      .then(() => setStatus('scanning', 'Show your face!'))
+      .catch(() => setStatus('error', 'Camera error'));
+
+    // ── Capture button ────────────────────────────────────────────
+    captureBtn.addEventListener('click', () => {
+      const link    = document.createElement('a');
+      link.download = `unicup-coffee-${Date.now()}.png`;
+      link.href     = canvas.toDataURL('image/png');
+      link.click();
+
+      // Brief flash feedback
+      captureBtn.classList.add('flash');
+      setTimeout(() => captureBtn.classList.remove('flash'), 200);
+    });
+  </script>
+</body>
+</html>
